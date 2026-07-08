@@ -25,6 +25,7 @@ exports.handler = async function (event) {
 
     let candidates = verses.filter(v => !history.includes(v.id));
     if (candidates.length === 0) {
+      // volledige cyclus gehad, opnieuw beginnen
       history = [];
       candidates = verses;
     }
@@ -43,7 +44,7 @@ exports.handler = async function (event) {
       }
     }
 
-    // 4. Griekse tekst (SBLGNT) — TODO: koppel aan een SBLGNT-databron/eigen dataset
+    // 4. Griekse tekst (SBLGNT) — al meegeleverd in data/verses.json
     const greekText = chosen.greek_text || null;
 
     const dayObject = {
@@ -55,13 +56,14 @@ exports.handler = async function (event) {
       english_text: englishText,
       english_source: 'NASB2020 © Lockman Foundation. Used by permission. All rights reserved. Website: https://www.lockman.org',
       greek_text: greekText,
-      greek_source: 'SBLGNT',
+      greek_source: 'SBLGNT © 2010 Society of Biblical Literature and Logos Bible Software. Used under CC BY 4.0.',
       jesus_seminar_color: chosen.jesus_seminar_color_five_gospels,
       manuscripts_note: chosen.early_manuscript_tradition_general,
       gospel_parallels: chosen.gospel_parallels,
       csntm_link: 'https://collections.csntm.org',
       mounce_link: 'https://www.billmounce.com/dictionary/',
       bible_gateway_link: `https://www.biblegateway.com/passage/?search=${encodeURIComponent(chosen.reference)}&version=NASB2020`,
+      sblgnt_link: 'https://sblgnt.com',
       api_bible_attribution: 'Powered by API.Bible',
       api_bible_link: 'https://api.bible',
     };

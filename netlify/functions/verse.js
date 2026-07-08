@@ -1,4 +1,4 @@
-const { getStore } = require('@netlify/blobs');
+const { getStore, connectLambda } = require('@netlify/blobs');
 const verses = require('../../data/verses.json');
 
 // TODO: vul in met eigen API-Bible key (https://scripture.api.bible) voor NASB2020-tekst
@@ -7,6 +7,8 @@ const BIBLE_API_ID = process.env.BIBLE_API_BIBLE_ID;
 
 exports.handler = async function (event) {
   try {
+    connectLambda(event); // vereist in Lambda-compatibiliteitsmodus, voor Netlify Blobs
+
     const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
 
     const cacheStore = getStore('verse-cache');
@@ -23,7 +25,6 @@ exports.handler = async function (event) {
 
     let candidates = verses.filter(v => !history.includes(v.id));
     if (candidates.length === 0) {
-      // volledige cyclus gehad, opnieuw beginnen
       history = [];
       candidates = verses;
     }
@@ -43,7 +44,7 @@ exports.handler = async function (event) {
     }
 
     // 4. Griekse tekst (SBLGNT) — TODO: koppel aan een SBLGNT-databron/eigen dataset
-    const greekText = chosen.greek_text || null; // vul dit veld in data/verses.json of via een aparte lookup
+    const greekText = chosen.greek_text || null;
 
     const dayObject = {
       date: today,

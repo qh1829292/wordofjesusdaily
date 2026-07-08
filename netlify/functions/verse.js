@@ -1,37 +1,43 @@
 const { getStore, connectLambda } = require('@netlify/blobs');
 const verses = require('../../data/verses.json');
 
-// TODO: vul in met eigen API-Bible key (https://scripture.api.bible) voor NASB2020-tekst
 const BIBLE_API_KEY = process.env.BIBLE_API_KEY;
 const BIBLE_API_ID = process.env.BIBLE_API_BIBLE_ID;
 
-exports.handler = async function (event) {
-  try {
-    connectLambda(event); // vereist in Lambda-compatibiliteitsmodus, voor Netlify Blobs
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
 
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+exports.handler = async function (event) {
+  // Preflight-verzoek van de browser afhandelen
+  if (event.httpMethod === 'OPTIONS') {
+    return { statusCode: 204, headers: CORS_HEADERS, body: '' };
+  }
+
+  try {
+    connectLambda(event);
+
+    const today = new Date().toISOString().split('T')[0];
 
     const cacheStore = getStore('verse-cache');
     const historyStore = getStore('verse-history');
 
-    // 1. Is het vandaag al gecached?
     const cached = await cacheStore.get(today, { type: 'json' });
     if (cached) {
-      return { statusCode: 200, body: JSON.stringify(cached) };
+      return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(cached) };
     }
 
-    // 2. Kies een nog niet (recent) gebruikt vers
     let history = (await historyStore.get('used-ids', { type: 'json' })) || [];
 
     let candidates = verses.filter(v => !history.includes(v.id));
     if (candidates.length === 0) {
-      // volledige cyclus gehad, opnieuw beginnen
       history = [];
       candidates = verses;
     }
     const chosen = candidates[Math.floor(Math.random() * candidates.length)];
 
-    // 3. Haal Engelse tekst op (NASB2020 via API.Bible)
     let englishText = null;
     if (BIBLE_API_KEY && BIBLE_API_ID) {
       const res = await fetch(
@@ -44,7 +50,6 @@ exports.handler = async function (event) {
       }
     }
 
-    // 4. Griekse tekst (SBLGNT) — al meegeleverd in data/verses.json
     const greekText = chosen.greek_text || null;
 
     const dayObject = {
@@ -72,9 +77,9 @@ exports.handler = async function (event) {
     history.push(chosen.id);
     await historyStore.setJSON('used-ids', history);
 
-    return { statusCode: 200, body: JSON.stringify(dayObject) };
+    return { statusCode: 200, headers: CORS_HEADERS, body: JSON.stringify(dayObject) };
   } catch (err) {
     console.error(err);
-    return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
+    return { statusCode: 500, headers: CORS_HEADERS, body: JSON.stringify({ error: err.message }) };
   }
 };

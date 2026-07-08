@@ -2,12 +2,12 @@ importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js');
 
 firebase.initializeApp({
-  apiKey: "VUL_IN",
-  authDomain: "VUL_IN.firebaseapp.com",
-  projectId: "VUL_IN",
-  storageBucket: "VUL_IN.firebasestorage.app",
-  messagingSenderId: "VUL_IN",
-  appId: "VUL_IN"
+  apiKey: "AIzaSyCn-Dxz9d8BJ9jtnda-UJ5B3ZrcZ6YNMkk",
+  authDomain: "word-of-jesus-daily.firebaseapp.com",
+  projectId: "word-of-jesus-daily",
+  storageBucket: "word-of-jesus-daily.firebasestorage.app",
+  messagingSenderId: "158863158468",
+  appId: "1:158863158468:web:8deeb2b7f02d94ef0bad91"
 });
 
 const messaging = firebase.messaging();

@@ -11,7 +11,6 @@ const CORS_HEADERS = {
 };
 
 exports.handler = async function (event) {
-  // Preflight-verzoek van de browser afhandelen
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers: CORS_HEADERS, body: '' };
   }
@@ -39,14 +38,17 @@ exports.handler = async function (event) {
     const chosen = candidates[Math.floor(Math.random() * candidates.length)];
 
     let englishText = null;
+    let fumsToken = null;
+
     if (BIBLE_API_KEY && BIBLE_API_ID) {
       const res = await fetch(
-        `https://api.scripture.api.bible/v1/bibles/${BIBLE_API_ID}/search?query=${encodeURIComponent(chosen.reference)}`,
+        `https://api.scripture.api.bible/v1/bibles/${BIBLE_API_ID}/search?query=${encodeURIComponent(chosen.reference)}&fums-version=3`,
         { headers: { 'api-key': BIBLE_API_KEY } }
       );
       if (res.ok) {
         const data = await res.json();
         englishText = data?.data?.passages?.[0]?.content || null;
+        fumsToken = data?.meta?.fumsToken || null;
       }
     }
 
@@ -71,6 +73,7 @@ exports.handler = async function (event) {
       sblgnt_link: 'https://sblgnt.com',
       api_bible_attribution: 'Powered by API.Bible',
       api_bible_link: 'https://api.bible',
+      fums_token: fumsToken,
     };
 
     await cacheStore.setJSON(today, dayObject);

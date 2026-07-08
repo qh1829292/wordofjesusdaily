@@ -1,4 +1,4 @@
-const { getStore } = require('@netlify/blobs');
+const { getStore, connectLambda } = require('@netlify/blobs');
 const admin = require('firebase-admin');
 
 if (!admin.apps.length) {
@@ -8,15 +8,23 @@ if (!admin.apps.length) {
 }
 
 exports.handler = async function (event) {
+  connectLambda(event); // vereist in Lambda-compatibiliteitsmodus, voor Netlify Blobs
+
   try {
-    // Haal vandaag's vers op (dezelfde functie als de site gebruikt, voor synchronisatie)
+    // Haal vandaag's vers op via dezelfde functie als de site gebruikt,
+    // zodat notificatie en pagina altijd exact hetzelfde vers tonen.
     const verseRes = await fetch(`${process.env.URL}/.netlify/functions/verse`);
+    if (!verseRes.ok) {
+      throw new Error(`verse function returned ${verseRes.status}`);
+    }
     const dayObject = await verseRes.json();
 
-    const tokenStore = getStore({ name: 'push-tokens', siteID: process.env.NETLIFY_SITE_ID, token: process.env.NETLIFY_AUTH_TOKEN });
+    const tokenStore = getStore('push-tokens');
     const { blobs } = await tokenStore.list();
 
     let sent = 0;
+    let failed = 0;
+
     for (const blob of blobs) {
       const token = blob.key;
       try {
@@ -33,11 +41,20 @@ exports.handler = async function (event) {
         sent++;
       } catch (e) {
         console.error(`Failed for token ${token}:`, e.message);
+        failed++;
+        // Token is waarschijnlijk verlopen of ingetrokken; opruimen.
+        if (e.code === 'messaging/registration-token-not-registered') {
+          await tokenStore.delete(token);
+        }
       }
     }
 
-    return { statusCode: 200, body: JSON.stringify({ sent, total: blobs.length }) };
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ sent, failed, total: blobs.length, verse: dayObject.reference }),
+    };
   } catch (err) {
+    console.error(err);
     return { statusCode: 500, body: JSON.stringify({ error: err.message }) };
   }
 };

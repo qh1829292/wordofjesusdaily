@@ -1,14 +1,16 @@
 const { getStore } = require('@netlify/blobs');
+const verses = require('../../data/verses.json');
 
-// TODO: vul in met eigen API-Bible key (https://scripture.api.bible) voor NRSVue-tekst
+// TODO: vul in met eigen API-Bible key (https://scripture.api.bible) voor NASB2020-tekst
 const BIBLE_API_KEY = process.env.BIBLE_API_KEY;
-const BIBLE_API_ID = process.env.BIBLE_API_BIBLE_ID; // NRSVue bible-id van API.Bible
+const BIBLE_API_ID = process.env.BIBLE_API_BIBLE_ID;
 
 exports.handler = async function (event) {
   try {
-    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD, NL-tijd afronden indien nodig
-    const cacheStore = getStore({ name: 'verse-cache', siteID: process.env.NETLIFY_SITE_ID, token: process.env.NETLIFY_AUTH_TOKEN });
-    const historyStore = getStore({ name: 'verse-history', siteID: process.env.NETLIFY_SITE_ID, token: process.env.NETLIFY_AUTH_TOKEN });
+    const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+
+    const cacheStore = getStore('verse-cache');
+    const historyStore = getStore('verse-history');
 
     // 1. Is het vandaag al gecached?
     const cached = await cacheStore.get(today, { type: 'json' });
@@ -17,7 +19,6 @@ exports.handler = async function (event) {
     }
 
     // 2. Kies een nog niet (recent) gebruikt vers
-    const verses = require('../../data/verses.json'); // array van rijen uit de CSV
     let history = (await historyStore.get('used-ids', { type: 'json' })) || [];
 
     let candidates = verses.filter(v => !history.includes(v.id));
@@ -28,10 +29,9 @@ exports.handler = async function (event) {
     }
     const chosen = candidates[Math.floor(Math.random() * candidates.length)];
 
-    // 3. Haal Engelse tekst op (NRSVue via API.Bible)
+    // 3. Haal Engelse tekst op (NASB2020 via API.Bible)
     let englishText = null;
     if (BIBLE_API_KEY && BIBLE_API_ID) {
-      const passageId = chosen.reference.replace(/\s+/g, '.').replace(':', '.');
       const res = await fetch(
         `https://api.scripture.api.bible/v1/bibles/${BIBLE_API_ID}/search?query=${encodeURIComponent(chosen.reference)}`,
         { headers: { 'api-key': BIBLE_API_KEY } }
@@ -52,7 +52,7 @@ exports.handler = async function (event) {
       reference: chosen.reference,
       pericope_theme: chosen.pericope_theme,
       english_text: englishText,
-      english_source: 'NRSVue via API.Bible',
+      english_source: 'NASB2020 © Lockman Foundation. Used by permission. All rights reserved. Website: https://www.lockman.org',
       greek_text: greekText,
       greek_source: 'SBLGNT',
       jesus_seminar_color: chosen.jesus_seminar_color_five_gospels,
@@ -60,7 +60,9 @@ exports.handler = async function (event) {
       gospel_parallels: chosen.gospel_parallels,
       csntm_link: 'https://collections.csntm.org',
       mounce_link: 'https://www.billmounce.com/dictionary/',
-      bible_gateway_link: `https://www.biblegateway.com/passage/?search=${encodeURIComponent(chosen.reference)}&version=NRSVUE`,
+      bible_gateway_link: `https://www.biblegateway.com/passage/?search=${encodeURIComponent(chosen.reference)}&version=NASB2020`,
+      api_bible_attribution: 'Powered by API.Bible',
+      api_bible_link: 'https://api.bible',
     };
 
     await cacheStore.setJSON(today, dayObject);

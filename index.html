@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Word of Jesus Daily — Activate Notifications</title>
+<link rel="icon" href="/icon-192.png" />
+<style>
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    background: linear-gradient(135deg,#1c2a3f,#2d4363);
+    color: #f5f0e6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+    padding: 24px;
+    box-sizing: border-box;
+  }
+  .card {
+    max-width: 420px;
+    text-align: center;
+  }
+  h1 {
+    font-size: 24px;
+    margin-bottom: 12px;
+  }
+  p {
+    font-size: 15px;
+    line-height: 1.6;
+    opacity: 0.9;
+  }
+  button {
+    background: #d6b26c;
+    color: #1c2a3f;
+    border: none;
+    border-radius: 8px;
+    padding: 14px 28px;
+    font-size: 16px;
+    font-weight: bold;
+    font-family: Georgia, serif;
+    cursor: pointer;
+    margin-top: 20px;
+  }
+  button:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+  #status {
+    margin-top: 18px;
+    font-size: 14px;
+    min-height: 20px;
+  }
+  a.back-link {
+    color: #d6b26c;
+    display: inline-block;
+    margin-top: 28px;
+    font-size: 13px;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1>Word of Jesus Daily</h1>
+  <p>Get a notification every morning at 7:00 with one saying of Jesus &mdash; English text, Greek source, and context.</p>
+  <button id="activate-btn">🔔 Activate daily notifications</button>
+  <div id="status"></div>
+  <a class="back-link" href="https://quintsquestforjesus.blogspot.com/p/word-of-jesus-daily.html">← Back to today's verse</a>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-compat.js"></script>
+<script>
+  var firebaseConfig = {
+    apiKey: "AIzaSyCn-Dxz9d8BJ9jtnda-UJ5B3ZrcZ6YNMkk",
+    authDomain: "word-of-jesus-daily.firebaseapp.com",
+    projectId: "word-of-jesus-daily",
+    storageBucket: "word-of-jesus-daily.firebasestorage.app",
+    messagingSenderId: "158863158468",
+    appId: "1:158863158468:web:8deeb2b7f02d94ef0bad91"
+  };
+
+  var VAPID_KEY = "3XRI2h5tIxXJm0uZcYKj6QtHEnHM3_vlqO_SFl4ovMs";
+
+  firebase.initializeApp(firebaseConfig);
+  var messaging = firebase.messaging();
+
+  var statusEl = document.getElementById("status");
+  var btn = document.getElementById("activate-btn");
+
+  function setStatus(text) {
+    statusEl.textContent = text;
+  }
+
+  if (!("serviceWorker" in navigator) || !("Notification" in window)) {
+    setStatus("Your browser does not support push notifications.");
+    btn.disabled = true;
+  }
+
+  btn.addEventListener("click", function () {
+    btn.disabled = true;
+    setStatus("Requesting permission…");
+
+    navigator.serviceWorker.register("/firebase-messaging-sw.js")
+      .then(function (registration) {
+        return Notification.requestPermission().then(function (permission) {
+          if (permission !== "granted") {
+            throw new Error("Notification permission was not granted.");
+          }
+          return messaging.getToken({
+            vapidKey: VAPID_KEY,
+            serviceWorkerRegistration: registration
+          });
+        });
+      })
+      .then(function (token) {
+        if (!token) {
+          throw new Error("No registration token available.");
+        }
+        return fetch("/.netlify/functions/save-token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token: token })
+        });
+      })
+      .then(function (res) {
+        if (!res.ok) throw new Error("Could not save your subscription.");
+        setStatus("✓ You're subscribed! You'll receive today's verse every morning at 7:00.");
+      })
+      .catch(function (err) {
+        console.error(err);
+        setStatus("Something went wrong: " + err.message);
+        btn.disabled = false;
+      });
+  });
+</script>
+
+</body>
+</html>

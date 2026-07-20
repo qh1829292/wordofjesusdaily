@@ -11,8 +11,6 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-// Simple keyword -> nature/landscape search term mapping, so the daily
-// background photo has some loose thematic connection to the verse.
 const SCENE_RULES = [
   [/sower|seed|field|harvest|wheat/i, 'wheat field golden hour'],
   [/shepherd|sheep|lost sheep/i, 'sheep pasture hills'],
@@ -26,25 +24,41 @@ const SCENE_RULES = [
   [/night|dark/i, 'night sky stars landscape'],
 ];
 
-function pickScene(theme) {
+// Broader fallback pool so different verses that don't match a specific
+// rule still get real variety instead of collapsing onto one default query.
+const FALLBACK_QUERIES = [
+  'peaceful landscape golden hour',
+  'misty mountains landscape',
+  'countryside path landscape',
+  'olive grove hills',
+  'lake reflection sunrise',
+  'rolling hills landscape',
+  'coastal cliffs landscape',
+  'forest sunlight landscape',
+  'meadow wildflowers landscape',
+  'valley clouds landscape',
+];
+
+function pickScene(theme, seedNum) {
   for (const [pattern, query] of SCENE_RULES) {
     if (pattern.test(theme)) return query;
   }
-  return 'peaceful landscape golden hour';
+  return FALLBACK_QUERIES[seedNum % FALLBACK_QUERIES.length];
 }
 
-async function fetchBackgroundImage(theme) {
+async function fetchBackgroundImage(theme, seedNum) {
   if (!PEXELS_API_KEY) return null;
   try {
-    const query = pickScene(theme);
+    const query = pickScene(theme, seedNum);
     const res = await fetch(
-      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&orientation=portrait&per_page=1`,
+      `https://api.pexels.com/v1/search?query=${encodeURIComponent(query)}&orientation=portrait&per_page=15`,
       { headers: { Authorization: PEXELS_API_KEY } }
     );
     if (!res.ok) return null;
     const data = await res.json();
-    const photo = data?.photos?.[0];
-    if (!photo) return null;
+    const photos = data?.photos || [];
+    if (!photos.length) return null;
+    const photo = photos[Math.floor(Math.random() * photos.length)];
     return {
       url: photo.src.portrait || photo.src.large2x || photo.src.large,
       photographer: photo.photographer,
@@ -100,7 +114,7 @@ exports.handler = async function (event) {
     }
 
     const greekText = chosen.greek_text || null;
-    const backgroundImage = await fetchBackgroundImage(chosen.pericope_theme);
+    const backgroundImage = await fetchBackgroundImage(chosen.pericope_theme, chosen.id);
 
     const dayObject = {
       date: today,
